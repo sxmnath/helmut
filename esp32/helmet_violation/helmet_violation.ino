@@ -1,13 +1,13 @@
 #include <WiFi.h>
+#include <WiFiManager.h>
 #include <esp_camera.h>
 #include <HTTPClient.h>
 #include <U8g2lib.h>
 #include "sxmnath-project-1_inferencing.h"
 
 // ── Config — fill these in ────────────────────────────────────────
-#define WIFI_SSID          "YOUR_WIFI_SSID"
-#define WIFI_PASS          "YOUR_WIFI_PASSWORD"
-#define SERVER_URL         "https://YOUR_RENDER_APP.onrender.com/violation"
+
+#define SERVER_URL         "https://helmut-mhzc.onrender.com"
 #define CONFIDENCE_THRESH  0.75f
 #define LOOP_DELAY_MS      2000
 
@@ -200,20 +200,24 @@ void setup() {
   showOLED("Booting...");
 
   // Connect Wi-Fi
-  showOLED("Connecting WiFi", WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  unsigned long t = millis();
-  while (WiFi.status() != WL_CONNECTED) {
-    if (millis() - t > 15000) {
-      showOLED("WiFi FAILED", "Check creds");
-      while (true) delay(1000);
-    }
-    delay(300);
-    Serial.print(".");
-  }
-  Serial.println("\nWiFi: " + WiFi.localIP().toString());
-  showOLED("WiFi OK", WiFi.localIP().toString().c_str());
-  delay(1000);
+WiFiManager wm;
+
+showOLED("Setup WiFi", "Connect Phone");
+
+bool res = wm.autoConnect("HelmetMonitor-Setup");
+
+if (!res) {
+  Serial.println("WiFi Failed");
+  showOLED("WiFi Failed", "Restarting...");
+  delay(2000);
+  ESP.restart();
+}
+
+Serial.println("WiFi Connected!");
+Serial.println(WiFi.localIP());
+
+showOLED("WiFi Connected", WiFi.localIP().toString().c_str());
+delay(1000);
 
   showOLED("System Ready", "Detecting...");
 }
@@ -222,11 +226,13 @@ void setup() {
 void loop() {
   // Reconnect Wi-Fi if dropped
   if (WiFi.status() != WL_CONNECTED) {
-    showOLED("WiFi lost...", "Reconnecting");
-    WiFi.reconnect();
-    delay(3000);
-    return;
-  }
+  showOLED("WiFi Lost", "Reconnecting...");
+
+  WiFiManager wm;
+  wm.autoConnect("HelmetMonitor-Setup");
+
+  return;
+}
 
   // Keepalive ping every 10 mins to prevent Render cold start
   static unsigned long lastPing = 0;
