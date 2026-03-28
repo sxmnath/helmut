@@ -9,13 +9,13 @@
 ## Screenshots
 
 ### Live Dashboard — Offender Log
-> *(Add screenshot of dashboard here — `assets/dashboard.png`)*
+![Dashboard](assets/dashboard.png)
 
 ### OLED Output on Violation
-> *(Add photo of OLED showing "VIOLATION! Plate: MH12AB1234" — `assets/oled_violation.jpg`)*
+![OLED showing "Helmet probability & confidence"](assets/oled_violation.jpg)
 
-### Serial Monitor — Detection Cycle
-> *(Add screenshot of Arduino Serial Monitor — `assets/serial_monitor.png`)*
+### Cicuit Diagram
+![Cicuit Diagram](assets/ckt_diagram.png)
 
 ---
 
