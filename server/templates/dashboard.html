@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Helmet Violation Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root{--bg:#0b0c0f;--surface:#13141a;--surface2:#1c1e27;--border:rgba(255,255,255,0.07);--accent:#ff4444;--green:#00e5a0;--text:#e8e9ef;--muted:#6b6d7a;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+  header{padding:24px 40px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .logo{font-family:'Space Mono',monospace;font-size:14px;color:var(--accent);letter-spacing:0.1em;}
+  .live-badge{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.3)}}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:32px 40px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;}
+  .stat-num{font-family:'Space Mono',monospace;font-size:36px;font-weight:700;color:var(--accent);}
+  .stat-label{font-size:13px;color:var(--muted);margin-top:4px;}
+  .table-wrap{padding:0 40px 40px;}
+  .section-title{font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;}
+  table{width:100%;border-collapse:collapse;}
+  thead tr{border-bottom:1px solid var(--border);}
+  th{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;padding:0 16px 12px 0;text-align:left;}
+  td{padding:14px 16px 14px 0;border-bottom:1px solid rgba(255,255,255,0.03);font-size:14px;vertical-align:middle;}
+  .plate-badge{font-family:'Space Mono',monospace;font-size:13px;background:#1c1e27;border:1px solid rgba(255,68,68,0.3);color:#ff8080;padding:4px 12px;border-radius:6px;display:inline-block;}
+  .conf-bar{height:4px;border-radius:2px;background:var(--border);width:80px;display:inline-block;vertical-align:middle;margin-left:8px;overflow:hidden;}
+  .conf-fill{height:100%;border-radius:2px;background:var(--accent);}
+  .snap-thumb{width:64px;height:40px;object-fit:cover;border-radius:4px;border:1px solid var(--border);}
+  .new-row{animation:flash 1.5s ease-out;}
+  @keyframes flash{0%{background:rgba(255,68,68,0.12)}100%{background:transparent}}
+  @media(max-width:600px){.stats{grid-template-columns:1fr;}.stat-num{font-size:28px;}header,table-wrap,stats{padding-left:20px;padding-right:20px;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">HELMET VIOLATION MONITOR</div>
+  <div class="live-badge">
+    <div class="dot"></div>
+    <span>Live — <span id="conn-status">connecting...</span></span>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-num" id="total-count">{{ offenders|length }}</div>
+    <div class="stat-label">Total violations logged</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="today-count">0</div>
+    <div class="stat-label">Violations today</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:var(--green)" id="uptime">--</div>
+    <div class="stat-label">System uptime</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <div class="section-title">Offender log</div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Plate number</th>
+        <th>Timestamp</th>
+        <th>Confidence</th>
+        <th>Snapshot</th>
+      </tr>
+    </thead>
+    <tbody id="offenders-tbody">
+      {% for o in offenders %}
+      <tr>
+        <td style="color:var(--muted)">{{ loop.index }}</td>
+        <td><span class="plate-badge">{{ o.plate }}</span></td>
+        <td style="color:var(--muted);font-size:13px">{{ o.timestamp }}</td>
+        <td>
+          <span style="font-family:'Space Mono',monospace;font-size:12px">{{ (o.confidence * 100)|round(1) }}%</span>
+          <span class="conf-bar"><span class="conf-fill" style="width:{{ (o.confidence * 100)|round(1) }}%"></span></span>
+        </td>
+        <td><img class="snap-thumb" src="/{{ o.snapshot }}" alt="snap" onerror="this.style.display='none'"/></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  let total = {{ offenders|length }};
+  let rowNum = total;
+  const start = Date.now();
+
+  // Uptime ticker
+  setInterval(() => {
+    const s = Math.floor((Date.now() - start) / 1000);
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(s%60).padStart(2,'0');
+    document.getElementById('uptime').textContent = `${h}:${m}:${sec}`;
+  }, 1000);
+
+  // Today count on load
+  const today = new Date().toISOString().slice(0,8).replace(/-/g,'');
+  document.querySelectorAll('#offenders-tbody tr').forEach(r => {
+    if (r.children[2]?.textContent?.startsWith(today)) {
+      document.getElementById('today-count').textContent =
+        parseInt(document.getElementById('today-count').textContent) + 1;
+    }
+  });
+
+  // SSE live updates
+  const es = new EventSource('/stream');
+  es.onopen = () => document.getElementById('conn-status').textContent = 'connected';
+  es.onerror = () => document.getElementById('conn-status').textContent = 'reconnecting...';
+
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (!d.plate) return;
+
+    total++;
+    rowNum++;
+    document.getElementById('total-count').textContent = total;
+
+    const ts = d.timestamp || '';
+    if (ts.startsWith(today)) {
+      document.getElementById('today-count').textContent =
+        parseInt(document.getElementById('today-count').textContent) + 1;
+    }
+
+    const tbody = document.getElementById('offenders-tbody');
+    const row = document.createElement('tr');
+    row.className = 'new-row';
+    row.innerHTML = `
+      <td style="color:var(--muted)">${rowNum}</td>
+      <td><span class="plate-badge">${d.plate}</span></td>
+      <td style="color:var(--muted);font-size:13px">${ts}</td>
+      <td>
+        <span style="font-family:'Space Mono',monospace;font-size:12px">${d.confidence}%</span>
+        <span class="conf-bar"><span class="conf-fill" style="width:${d.confidence}%"></span></span>
+      </td>
+      <td>${d.snapshot ? `<img class="snap-thumb" src="${d.snapshot}" alt="snap"/>` : '—'}</td>
+    `;
+    tbody.insertAdjacentElement('afterbegin', row);
+  };
+</script>
+</body>
+</html>
+```
